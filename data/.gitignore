@@ -1,0 +1,10 @@
+# File extension for dataset
+*.zip
+*.xyz
+*.off
+
+/*.xyz
+/*.off
+
+*
+!.gitignore
