@@ -25,7 +25,7 @@ class PatchDataset(Dataset):
     
 
     def __len__(self):
-        return len(self.pc_dataset)*self.patch_ratio
+        return sum([len(dataset) for dataset in self.pc_dataset])*self.num_patches
     
     def __getitem__(self, idx):
         pc_dataset = random.choice(self.pc_dataset)

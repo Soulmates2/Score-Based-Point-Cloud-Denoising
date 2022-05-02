@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from pytorch3d.ops import knn_points
 
+
 class DenseEdgeConv(nn.Module):
     def __init__(self, n_input, n_output, knn, is_first_layer):
         super().__init__()
@@ -59,7 +60,8 @@ class DenseEdgeConv(nn.Module):
         x = torch.cat([x1, x2], dim=-1)
         
         return torch.max(x, dim=-2)[0]
-        
+
+
 class FeatureExtraction(nn.Module):
     def __init__(self, input_size=3, feature_size=24, conv_output_size=12, n_layers=4, knn=16):
         super().__init__()
@@ -72,15 +74,16 @@ class FeatureExtraction(nn.Module):
         for i in range(n_layers):
             if i == 0:
                 self.layer_list.append(nn.Linear(input_size, feature_size, bias=True))
-                self.layer_list.append(DenseEdgeConv(feature_size, conv_output_size, knn, is_first_layer=True)
+                self.layer_list.append(DenseEdgeConv(feature_size, conv_output_size, knn, is_first_layer=True))
             else:
                 self.layer_list.append(nn.Linear(feature_size + 3 * conv_output_size, feature_size, bias=True))
                 self.layer_list.append(nn.ReLU())
-                self.layer_list.append(DenseEdgeConv(feature_size, conv_output_size, knn, is_first_layer=False)
+                self.layer_list.append(DenseEdgeConv(feature_size, conv_output_size, knn, is_first_layer=False))
         self.layers = nn.Sequential(*self.layer_list)
     
     def forward(self, x):
         return self.layers(x)
+
 
 if __name__ == "__main__":
     print("============ Feature Extraction Module ============")
