@@ -25,8 +25,10 @@ class PointCloudDataset(Dataset):
         return len(self.pc_data)
 
     def __getitem__(self, idx):
-        data = self.pc_data[idx]
-        return data
+        data_dict = {'clean_pc': torch.FloatTensor(self.pc_data[idx])}
+        if self.transform is not None:
+            data_dict = self.transform(data_dict)
+        return data_dict
 
 
 if __name__ == "__main__":
