@@ -45,7 +45,11 @@ class DenseEdgeConv(nn.Module):
             return feat - prev
         else:
             return torch.cat([prev, feat, feat - prev], dim=-1)
-        
+    
+    @property
+    def out_channels(self):
+        return self.n_input + self.n_output * 3
+
     def forward(self, x):
         x1 = self.layer1(self.feature_knn(x))
         x2 = x.unsqueeze(dim=-2).repeat(1, 1, self.knn, 1)
@@ -81,6 +85,10 @@ class FeatureExtraction(nn.Module):
                 self.layer_list.append(DenseEdgeConv(feature_size, conv_output_size, knn, is_first_layer=False))
         self.layers = nn.Sequential(*self.layer_list)
     
+    @property
+    def out_channels(self):
+        return self.layers[-1].out_channels
+
     def forward(self, x):
         return self.layers(x)
 

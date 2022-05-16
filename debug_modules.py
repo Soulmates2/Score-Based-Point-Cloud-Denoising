@@ -4,6 +4,7 @@ import sys
 from dataloader import *
 from models import *
 import models.feature_extraction
+import models.score_network
 
 from torch.utils.data import DataLoader
 
@@ -32,11 +33,15 @@ print(patch_dataset[0]['noisy_pc'].shape, patch_dataset[0]['clean_pc'].shape)
 
 patch_loader = DataLoader(patch_dataset, batch_size=32, num_workers=4, shuffle=True)
 
-model = models.feature_extraction.FeatureExtraction()
-print(model)
+feature_extraction = models.feature_extraction.FeatureExtraction()
+print(feature_extraction)
+
+score_network = models.score_network.ScoreNetwork()
+print(score_network)
+
 
 for i, patch_dict in enumerate(patch_loader):
-    output = model(patch_dict['noisy_pc'])
-    print(f"extracted feature shape : {output.shape}") # B, 1000, 60
+    feature = feature_extraction(patch_dict['noisy_pc'])
+    print(f"extracted feature shape : {feature.shape}") # B, 1000, 60
     break
 
