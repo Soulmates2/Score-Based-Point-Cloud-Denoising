@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from pytorch3d.ops import knn_points
 import random
 
-import feature_extraction
-import score_network
+from .feature_extraction import FeatureExtraction
+from .score_network import ScoreNetwork
 
 class DenoiseNet(nn.Module):
     def __init__(self):
