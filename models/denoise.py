@@ -5,14 +5,14 @@ from pytorch3d.ops import knn_points
 import random
 
 import feature_extraction
-import score
+import score_network
 
 class DenoiseNet(nn.Module):
     def __init__(self):
         super().__init__()
         
         self.feat_unit = feature_extraction.FeatureExtraction()
-        self.score_unit = score.ScoreNet()
+        self.score_unit = score_network.ScoreNet()
         self.num_train_pts = 128
         self.knn = 32
         self.knn_clean = 4
