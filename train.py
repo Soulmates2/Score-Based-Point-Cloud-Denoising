@@ -5,13 +5,13 @@ import argparse
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
+from torch.nn.utils import clip_grad_norm_
+from pytorch3d.ops import knn_points
 # import wandb
 
 from dataloader import *
 from models.denoise import *
 from models.util import *
-
-from pytorch3d.ops import knn_points
 
 
 class add_random_noise(object):
@@ -56,6 +56,37 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
     return farthest_point_sampling(clean_patches.reshape(-1, 3), N)
 
 
+def train_step(noisy_pc, clean_pc, model):
+    noisy_pc = noisy_pc.to(device)
+    clean_pc = clean_pc.to(device)
+    
+    model.train()
+    loss = model.get_loss(noisy_pc, clean_pc)
+
+    optimizer.zero_grad()
+    loss.backward()
+    grad_norm = clip_grad_norm_(model.parameters(), float("inf"))
+    optimizer.step()
+
+    return loss, grad_norm
+
+
+def validation_step(dataset):
+    clean_pc_list = []
+    denoised_pc_list = []
+    for i, test_data in enumerate(dataset):
+        noisy_pc = test_data['noisy_pc'].to(device)
+        denoised_pc = gradient_ascent_denoise(noisy_pc, model)
+        denoised_pc_list.append(denoised_pc.unsqueeze(0))
+        clean_pc_list.append(test_data['clean_pc'].unsqueeze(0).to(device))
+    
+    clean_pc_list = torch.stack(clean_pc_list)
+    denoised_pc_list = torch.stack(denoised_pc_list)
+
+    chamfer_distance = 1
+    return chamfer_distance
+        
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=str, default='.data', help='dataset path')
@@ -64,6 +95,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_workers', type=int, default=4)
 
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--weight_decay', type=float, default=0)
     
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
     parser.add_argument('--epoch', type=int, default=1000000)
@@ -79,6 +111,7 @@ if __name__ == "__main__":
     torch.cuda.manual_seed_all(seed) # if use multi-GPU
     
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    device = 'cuda'
 
     if args.log is True:
         wandb.init(project="Score Denoising", config=args)
@@ -97,4 +130,19 @@ if __name__ == "__main__":
         resolution='10000_poisson',
         transform=add_random_noise(noise_std_min=0.005, noise_std_max=0.02)
     )
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     
+    model = DenoiseNet()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+    lowest_cd = float("inf")
+
+    for epoch in range(1, args.epoch):
+        for i, data in enumerate(train_loader):
+            train_loss, grad_norm = train_step(data['noisy_pc'], data['clean_pc'], model)
+            print(train_loss)
+            if epoch % 2000 == 0 or epoch == args.epoch:
+                cd = validation_step(test_data)
+                print(cd)
+                if cd < lowest_cd:
+                    lowest_cd = cd
