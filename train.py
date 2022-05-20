@@ -78,7 +78,8 @@ def validation_step(dataset):
         noisy_pc = test_data['noisy_pc'].to(device)
         denoised_pc = gradient_ascent_denoise(noisy_pc, model)
         denoised_pc_list.append(denoised_pc.unsqueeze(0))
-        clean_pc_list.append(test_data['clean_pc'].unsqueeze(0).to(device))
+        clean_pc = test_data['clean_pc'].to(device)
+        clean_pc_list.append(clean_pc.unsqueeze(0))
     
     clean_pc_list = torch.stack(clean_pc_list)
     denoised_pc_list = torch.stack(denoised_pc_list)
@@ -89,7 +90,7 @@ def validation_step(dataset):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--root', type=str, default='.data', help='dataset path')
+    parser.add_argument('--root', type=str, default='../score_denoise/data', help='dataset path')
     parser.add_argument('--dataset', type=str, default='PUNet', help='name of dataset')
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
@@ -132,17 +133,20 @@ if __name__ == "__main__":
     )
     train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     
-    model = DenoiseNet()
+    model = DenoiseNet().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     lowest_cd = float("inf")
 
     for epoch in range(1, args.epoch):
+        total_train_loss = 0
+        total_grad_norm = 0
         for i, data in enumerate(train_loader):
             train_loss, grad_norm = train_step(data['noisy_pc'], data['clean_pc'], model)
-            print(train_loss)
-            if epoch % 2000 == 0 or epoch == args.epoch:
-                cd = validation_step(test_data)
-                print(cd)
-                if cd < lowest_cd:
-                    lowest_cd = cd
+            total_train_loss += train_loss.item()
+        print(f'Epoch {epoch}/{args.epoch}: train loss = {total_train_loss/len(train_loader)}')
+        if epoch % 2000 == 0 or epoch == args.epoch:
+            cd = validation_step(test_data)
+            print(cd)
+            if cd < lowest_cd:
+                lowest_cd = cd

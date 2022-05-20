@@ -12,13 +12,13 @@ class DenoiseNet(nn.Module):
         super().__init__()
         
         self.feat_unit = FeatureExtraction()
-        self.score_unit = ScoreNetwork()
+        self.score_unit = ScoreNetwork().to('cuda')
         self.num_train_pts = 128
         self.knn = 32
         self.knn_clean = 4
         self.sigma = 0.01
     
-    def sample_idx(n, r):
+    def sample_idx(self, n, r):
         L = list(range(n))
         random.shuffle(L)
         return L[:r]
@@ -28,19 +28,19 @@ class DenoiseNet(nn.Module):
         N = noisy_pc.size()[1]
         M = clean_pc.size()[1]
         
-        sampled_idx = sample_idx(N, self.num_train_pts)
+        sampled_idx = self.sample_idx(N, self.num_train_pts)
         
-        noisy_feat = self.feat_unit(noisy_pc)[:sampled_idx:]
-        f = knn_points(noisy_pc[:sampled_idx:], noisy_pc, K=self.knn, return_nn=True)[2]
-        f_origin = noisy_pc[:sampled_idx:].unsqueeze(dim=2)
+        noisy_feat = self.feat_unit(noisy_pc)[:,sampled_idx,:]
+        f = knn_points(noisy_pc[:,sampled_idx,:], noisy_pc, K=self.knn, return_nn=True)[2]
+        f_origin = noisy_pc[:,sampled_idx,:].unsqueeze(dim=2)
         
         estim_score = self.score_unit(
-            (f - f.origin).reshape(-1, self.knn, 3),
+            (f - f_origin).reshape(-1, self.knn, 3),
             noisy_feat.reshape(-1, noisy_feat.size()[2])
-        )
+        ).reshape(B, len(sampled_idx), self.knn, 3)
         
         merge_f = f.reshape(-1, self.knn, 3)
-        merge_clean = clean_pc.unsqueeze(dim=1).repeat(1, self.num_train_pts, 1, 1).reshape(-1, N, 3)
+        merge_clean = clean_pc.unsqueeze(dim=1).repeat(1, self.num_train_pts, 1, 1).reshape(-1, M, 3)
         knn_clean = knn_points(merge_f, merge_clean, K=self.knn_clean, return_nn=True)[2]
         
         ground_score = f.unsqueeze(dim=3).repeat(1, 1, 1, self.knn_clean, 1) 

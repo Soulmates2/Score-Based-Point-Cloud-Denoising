@@ -30,7 +30,7 @@ class PatchDataset(Dataset):
     def __getitem__(self, idx):
         pc_dataset = random.choice(self.pc_dataset)
         pc_data = pc_dataset[idx % len(pc_dataset)]
-        print("pc_data before patch:", pc_data['noisy_pc'].shape, pc_data['clean_pc'].shape)
+        # print("pc_data before patch:", pc_data['noisy_pc'].shape, pc_data['clean_pc'].shape)
         patch_noisy, patch_clean = self.make_patch_pointcloud(pc_data['noisy_pc'], pc_data['clean_pc'])
         data = {'noisy_pc': patch_noisy[0], 'clean_pc': patch_clean[0]}
         if self.transform is not None:
