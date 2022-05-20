@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     # load model
     checkpoint = torch.load(args.checkpoint, map_location=device)
-    model = DenoiseNet(checkpoint['args']).to(device)
+    model = DenoiseNet().to(device)
     model.load_state_dict(checkpoint['state_dict'])
 
     # test
