@@ -149,3 +149,4 @@ cython_debug/
 # Temp outputs
 /*.xyz
 .DS_Store
+/*.pt
