@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader
 from dataloader import *
 from models.denoise import *
 
+from pytorch3d.ops import knn_points
+
 
 class add_random_noise(object):
         def __init__(self, noise_std_min, noise_std_max):
@@ -22,6 +24,35 @@ class add_random_noise(object):
             data_dict['noisy_pc'] = data_dict['clean_pc'] + torch.randn_like(data_dict['clean_pc']) * std
             data_dict['noise_std'] = std
             return data_dict
+
+def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, init_step_size=0.2, step_decay=0.95, num_steps=30):
+    N = noisy_pc.size()[0] #(N,3)
+    
+    num_patches = int(3 * N / patch_size)
+    patch_centers = farthest_point_sampling(noisy_pc, num_center_pts)
+    noisy_patches = knn_points(patch_centers.unsqueeze(dim=0), noisy_pc.unsqueeze(dim=0), K=patch_size, return_nn=True)[0] #(M,P,3)
+    
+    with torch.no_grad():
+        model.eval()
+        model.feat_unit.eval()
+        model.score_unit.eval()
+        
+        feat = model.feat_unit(noisy_patches)
+        clean_patches = noisy_patches.clone()
+        
+        for i in range(num_steps):
+            _, idx, nn = knn_points(noisy_patches, clean_patches, K=denoise_knn, return_nn=True) #idx: (M,P,knn)
+            x = (nn - noisy_patches.unsqueeze(dim=2).repeat(1,1,denoise_knn,1)).reshape(-1,denoise_knn,3)
+            z = feat.reshape(-1,feat.size()[-1])
+            
+            score = model.score_unit(x, z).reshape(noisy_patches.size()[0],-1,3) #(M*P,knn,3) -> (M,P*knn,3)
+            gradients = torch.zeros_like(noisy_patches) #(M,P,3)
+            gradients.scatter_add_(dim=1, index=idx.unsqueeze(-1).expand_as(score), src=score)
+            
+            step_size = init_step_size * (step_decay ** i)
+            clean_patches += step_size * gradients
+        
+    return farthest_point_sampling(clean_patches.reshape(-1, 3), N)
 
 
 if __name__ == "__main__":
