@@ -11,8 +11,8 @@ class DenoiseNet(nn.Module):
     def __init__(self):
         super().__init__()
         
-        self.feat_unit = feature_extraction.FeatureExtraction()
-        self.score_unit = score_network.ScoreNet()
+        self.feat_unit = FeatureExtraction()
+        self.score_unit = ScoreNetwork()
         self.num_train_pts = 128
         self.knn = 32
         self.knn_clean = 4
