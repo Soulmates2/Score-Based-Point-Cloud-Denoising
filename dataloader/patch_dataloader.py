@@ -1,8 +1,6 @@
 import random
 import importlib
 
-import tqdm
-
 import torch
 from torch.utils.data import Dataset
 from pytorch3d.ops import knn_points

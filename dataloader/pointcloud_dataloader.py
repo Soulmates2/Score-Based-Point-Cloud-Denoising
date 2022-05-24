@@ -2,15 +2,12 @@ import os
 import random
 
 import numpy as np
-import tqdm
-
 import torch
 from torch.utils.data import Dataset
-import pytorch3d.ops
 
 
 class PointCloudDataset(Dataset):
-    def __init__(self, root='../score-denoise/data', dataset="PUNet", split="train", resolution='10000_poisson', transform=None):
+    def __init__(self, root='./data', dataset="PUNet", split="train", resolution='10000_poisson', transform=None):
         self.data_dir = os.path.join(root, dataset, 'pointclouds', split, resolution)
         self.transform = transform
         self.pc_data = []
