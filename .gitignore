@@ -145,7 +145,10 @@ cython_debug/
 /logs*
 /results
 /inputs
+/wandb
 
 # Temp outputs
 /*.xyz
 .DS_Store
+/*.pt
+*.pt

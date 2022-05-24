@@ -48,14 +48,14 @@ class ScoreNetwork(nn.Module):
 
         self.conv1 = nn.Conv1d(point_dim + z_dim, hidden_dim, 1)
 
-        self.layer_list = []
+        self.layer_list = nn.ModuleList()
         for _ in range(num_blocks):
             self.layer_list.append(ResBlockConv1d(point_dim + z_dim, hidden_dim))
         self.bn1 = nn.BatchNorm1d(hidden_dim)
         self.act1 = nn.ReLU()
         self.conv2 = nn.Conv1d(hidden_dim, grad_dim, 1)
 
-        self.layers = nn.Sequential(*self.layer_list, self.bn1, self.act1, self.conv2)      
+        # self.layers = nn.Sequential(*self.layer_list, self.bn1, self.act1, self.conv2)      
     
     def forward(self, x, z):
         B, N, D = x.size()
@@ -65,7 +65,10 @@ class ScoreNetwork(nn.Module):
         condition = torch.cat([point, z_expand], dim=1)
 
         out = self.conv1(condition)
-        out = self.layers(out, condition)
+        for layer in self.layer_list:
+            out = layer(out, condition)
+        out = self.conv2(self.act1(self.bn1(out)))
+        # out = self.layers(out, condition)
         out = out.transpose(2, 1)
 
         return out

@@ -1,8 +1,6 @@
 import random
 import importlib
 
-import tqdm
-
 import torch
 from torch.utils.data import Dataset
 from pytorch3d.ops import knn_points
@@ -17,7 +15,7 @@ class PatchDataset(Dataset):
         self.transform = transform
         
     def make_patch_pointcloud(self, noisy, clean_gt):
-        seed_idx = torch.randperm(noisy.shape[0])[:self.num_patches]
+        seed_idx = torch.randperm(noisy.shape[0])[:1]
         seed_points = noisy[seed_idx].unsqueeze(0)
         _, _, patch_noisy = knn_points(seed_points, noisy.unsqueeze(0), K=self.patch_size, return_nn=True)
         _, _, patch_clean = knn_points(seed_points, clean_gt.unsqueeze(0), K=int(self.patch_ratio*self.patch_size), return_nn=True)
@@ -30,7 +28,6 @@ class PatchDataset(Dataset):
     def __getitem__(self, idx):
         pc_dataset = random.choice(self.pc_dataset)
         pc_data = pc_dataset[idx % len(pc_dataset)]
-        print("pc_data before patch:", pc_data['noisy_pc'].shape, pc_data['clean_pc'].shape)
         patch_noisy, patch_clean = self.make_patch_pointcloud(pc_data['noisy_pc'], pc_data['clean_pc'])
         data = {'noisy_pc': patch_noisy[0], 'clean_pc': patch_clean[0]}
         if self.transform is not None:
