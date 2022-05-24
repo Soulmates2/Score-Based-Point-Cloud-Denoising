@@ -2,13 +2,13 @@ import os
 import random
 import argparse
 
+import wandb
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
-import pytorch3d.loss
+from pytorch3d.loss import chamfer_distance
 from pytorch3d.ops import knn_points
-# import wandb
 
 from dataloader import *
 from models.denoise import *
@@ -42,7 +42,7 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
         
         feat = model.feat_unit(noisy_patches)
         iter_patches = noisy_patches.clone()
-        trace = []
+        # trace = [noisy_patches.clone().cpu()]
         
         for i in range(num_steps):
             _, idx, nn = knn_points(noisy_patches, iter_patches, K=denoise_knn, return_nn=True) #idx: (M,P,knn)
@@ -55,6 +55,7 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
             
             step_size = init_step_size * (step_decay ** i)
             iter_patches += step_size * gradients
+            # trace.append(iter_patches.clone().cpu())
         
     return farthest_point_sampling(iter_patches.reshape(-1, 3), N)
 
@@ -72,9 +73,6 @@ def train_step(iter, model):
     batch = next(train_iter)
     noisy_pc = batch['noisy_pc'].to(device)
     clean_pc = batch['clean_pc'].to(device)
-
-    # noisy_pc = noisy_pc.to(device)
-    # clean_pc = clean_pc.to(device)
     
     model.train()
     loss = model.get_loss(noisy_pc, clean_pc)
@@ -90,21 +88,29 @@ def train_step(iter, model):
 def validation_step(dataset):
     clean_pc_list = []
     denoised_pc_list = []
-    for i, test_data in enumerate(dataset):
+    for i, test_data in enumerate(tqdm(dataset, desc="val")):
         noisy_pc = test_data['noisy_pc'].to(device)
         denoised_pc = gradient_ascent_denoise(noisy_pc, model)
         denoised_pc_list.append(denoised_pc.unsqueeze(0))
         clean_pc = test_data['clean_pc'].to(device)
         clean_pc_list.append(clean_pc.unsqueeze(0))
-    
-    clean_pc_list = torch.stack(clean_pc_list)
-    denoised_pc_list = torch.stack(denoised_pc_list)
+        
+    clean_pc_list = torch.cat(clean_pc_list, dim=0)
+    denoised_pc_list = torch.cat(denoised_pc_list, dim=0)
 
-    cd = chamfer_distance(denoised_pc_list, clean_pc_list)
+    # if args.log is True:
+    #     wandb.log({"point_scene": 
+    #                     wandb.Object3D({
+    #                         "type": "lidar/beta",
+    #                         "points": denoised_pc_list[:4]
+    #                     }
+    #                 )})
+
+    cd = compute_chamfer_distance(denoised_pc_list, clean_pc_list)
     return cd
         
 
-def chamfer_distance(denoised_pc, clean_pc):
+def compute_chamfer_distance(denoised_pc, clean_pc):
     # Normalize
     p_max = clean_pc.max(dim=-2, keepdim=True)[0]
     p_min = clean_pc.min(dim=-2, keepdim=True)[0]
@@ -114,7 +120,7 @@ def chamfer_distance(denoised_pc, clean_pc):
     scale = (clean_pc ** 2).sum(dim=-1, keepdim=True).sqrt().max(dim=-2, keepdim=True)[0] / 1.0  # (B, N, 1)
     gt = clean_pc / scale
     pred = (denoised_pc - center) / scale
-    return pytorch3d.loss.chamfer_distance(pred, gt, batch_reduction='mean', point_reduction='mean')[0].item()
+    return chamfer_distance(pred, gt, batch_reduction='mean', point_reduction='mean')[0].item()
 
 
 if __name__ == "__main__":
@@ -129,7 +135,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
     parser.add_argument('--epoch', type=int, default=1000000)
-    parser.add_argument('--log', type=eval, default=False, choices=[True, False], help='logging train result')
+    parser.add_argument('--log', type=eval, default=True, choices=[True, False], help='logging train result')
 
     args = parser.parse_args()
     
@@ -171,19 +177,14 @@ if __name__ == "__main__":
 
     best_cd = float("inf")
 
-    for epoch in range(0, args.epoch+1):
+    for epoch in range(1, args.epoch+1):
         train_loss, grad_norm = train_step(epoch, model)
         print(f'Epoch {epoch}/{args.epoch}: train loss = {train_loss}')
         if args.log is True:
             wandb.log({"Loss/Train": train_loss, "Grad/Train": grad_norm})
-        # for i, data in enumerate(train_loader):
-        #     train_loss, grad_norm = train_step(data['noisy_pc'], data['clean_pc'], model)
-        #     total_train_loss += train_loss.item()
-        #     print(i)
-        # print(f'Epoch {epoch}/{args.epoch}: train loss = {total_train_loss/len(train_loader)}')
         if epoch % 2000 == 0 or epoch == args.epoch:
             cd = validation_step(test_data)
-            print(f'Epoch {epoch}/{args.epoch}: chamfer distance = {cd}')
+            print(f'Epoch {epoch}: chamfer distance = {cd}')
             ckpt = {'model':model.state_dict(), 'optimizer':optimizer.state_dict(), 'epoch':epoch}
             torch.save(ckpt, os.path.join(ckpt_root, 'last.pt'))
             if args.log is True:
@@ -191,3 +192,4 @@ if __name__ == "__main__":
             if cd < best_cd:
                 best_cd = cd
                 torch.save(ckpt, os.path.join(ckpt_root, 'best.pt'))
+                print(f'Epoch {epoch}: {cd} model is saved')
