@@ -15,7 +15,7 @@ class PatchDataset(Dataset):
         self.transform = transform
         
     def make_patch_pointcloud(self, noisy, clean_gt):
-        seed_idx = torch.randperm(noisy.shape[0])[:self.num_patches]
+        seed_idx = torch.randperm(noisy.shape[0])[:1]
         seed_points = noisy[seed_idx].unsqueeze(0)
         _, _, patch_noisy = knn_points(seed_points, noisy.unsqueeze(0), K=self.patch_size, return_nn=True)
         _, _, patch_clean = knn_points(seed_points, clean_gt.unsqueeze(0), K=int(self.patch_ratio*self.patch_size), return_nn=True)
