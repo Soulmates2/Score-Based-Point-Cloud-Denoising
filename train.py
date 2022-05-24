@@ -6,6 +6,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
+import pytorch3d.loss
 from pytorch3d.ops import knn_points
 # import wandb
 
@@ -32,7 +33,7 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
     
     num_patches = int(3 * N / patch_size)
     patch_centers = farthest_point_sampling(noisy_pc, num_patches)
-    noisy_patches = knn_points(patch_centers.unsqueeze(dim=0), noisy_pc.unsqueeze(dim=0), K=patch_size, return_nn=True)[0] #(M,P,3)
+    noisy_patches = knn_points(patch_centers.unsqueeze(dim=0), noisy_pc.unsqueeze(dim=0), K=patch_size, return_nn=True)[2][0] #(M,P,3)
     
     with torch.no_grad():
         model.eval()
@@ -50,7 +51,7 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
             
             score = model.score_unit(x, z).reshape(noisy_patches.size()[0],-1,3) #(M*P,knn,3) -> (M,P*knn,3)
             gradients = torch.zeros_like(noisy_patches) #(M,P,3)
-            gradients.scatter_add_(dim=1, index=idx.unsqueeze(-1).expand_as(score), src=score)
+            gradients.scatter_add_(dim=1, index=idx.reshape(idx.size()[0],-1,1).expand_as(score), src=score)
             
             step_size = init_step_size * (step_decay ** i)
             iter_patches += step_size * gradients
@@ -170,7 +171,7 @@ if __name__ == "__main__":
 
     best_cd = float("inf")
 
-    for epoch in range(1, args.epoch+1):
+    for epoch in range(0, args.epoch+1):
         train_loss, grad_norm = train_step(epoch, model)
         print(f'Epoch {epoch}/{args.epoch}: train loss = {train_loss}')
         if args.log is True:
