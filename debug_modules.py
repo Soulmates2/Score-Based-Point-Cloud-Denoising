@@ -40,8 +40,9 @@ score_network = models.score_network.ScoreNetwork()
 print(score_network)
 
 
-for i, patch_dict in enumerate(patch_loader):
-    feature = feature_extraction(patch_dict['noisy_pc'])
-    print(f"extracted feature shape : {feature.shape}") # B, 1000, 60
-    break
+
+# for i, patch_dict in enumerate(patch_loader):
+#     feature = feature_extraction(patch_dict['noisy_pc'])
+#     print(f"extracted feature shape : {feature.shape}") # B, 1000, 60
+#     break
 

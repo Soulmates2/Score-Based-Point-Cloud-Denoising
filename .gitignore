@@ -141,14 +141,15 @@ dmypy.json
 cython_debug/
 
 
+# Temp outputs
 /.vscode
 /logs*
-/results
+/result
 /inputs
 /wandb
 
-# Temp outputs
-/*.xyz
 .DS_Store
-/*.pt
+*.xyz
+*.txt
 *.pt
+nohup.out
