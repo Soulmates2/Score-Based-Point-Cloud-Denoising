@@ -13,17 +13,7 @@ from pytorch3d.loss import chamfer_distance, point_mesh_face_distance
 from dataloader import *
 from models.denoise import *
 from models.util import *
-
-
-def normalize_pc(pcl, center=None, scale=None):
-    p_max = pcl.max(dim=0, keepdim=True)[0]
-    p_min = pcl.min(dim=0, keepdim=True)[0]
-    center = (p_max + p_min) / 2    # (1, 3)
-    pcl = pcl - center
-    
-    scale = (pcl ** 2).sum(dim=1, keepdim=True).sqrt().max(dim=0, keepdim=True)[0]  # (1, 1)
-    pcl = pcl / scale
-    return pcl, center, scale
+from noise import *
 
 
 def load_xyz_files(dir):
