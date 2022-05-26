@@ -17,7 +17,7 @@ def normalize_pc(pcl):
     return pcl, center, scale
 
 
-class unit_sphere_normalize(object):
+class UnitSphereNormalize(object):
     def __init__(self):
         super().__init__()
 
@@ -28,7 +28,7 @@ class unit_sphere_normalize(object):
         return data
 
 
-class random_scale(object):
+class RandomScale(object):
     def __init__(self, scale_min, scale_max):
         self.scale_min = scale_min
         self.scale_max = scale_max
@@ -41,7 +41,7 @@ class random_scale(object):
         return data
 
 
-class random_rotate(object):
+class RandomRotate(object):
     def __init__(self, degree_min=-180.0, degree_max=180.0, axis=0):
         self.degree_min = degree_min
         self.degree_max = degree_max
@@ -66,7 +66,7 @@ class random_rotate(object):
         return data
 
 
-class add_random_noise(object):
+class AddRandomNoise(object):
     def __init__(self, noise_std_min, noise_std_max):
         super().__init__()
         self.noise_std_min = noise_std_min
@@ -81,14 +81,14 @@ class add_random_noise(object):
 
 def train_transform(noise_std_min=0.005, noise_std_max=0.020, scale_min=0.8, scale_max=1.2, rotate=True):
     transforms = [
-        unit_sphere_normalize(),
-        add_random_noise(noise_std_min, noise_std_max),
-        random_scale(scale_min, scale_max)
+        UnitSphereNormalize(),
+        AddRandomNoise(noise_std_min, noise_std_max),
+        RandomScale(scale_min, scale_max)
     ]
     if rotate is True:
         transforms += [
-            random_rotate(axis=0),
-            random_rotate(axis=1),
-            random_rotate(axis=2)
+            RandomRotate(axis=0),
+            RandomRotate(axis=1),
+            RandomRotate(axis=2)
         ]
     return Compose(transforms)

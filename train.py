@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
 
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--weight_decay', type=float, default=0)
     
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
@@ -141,8 +141,7 @@ if __name__ == "__main__":
         wandb.init(project='Score Denoising', config=args)
     
     ckpt_root = os.path.join(os.getcwd(), 'checkpoints')
-    if not os.path.exists(ckpt_root):
-        os.makedirs(ckpt_root)
+    os.makedirs(ckpt_root, exist_ok=True)
     
     train_data = PatchDataset(
         pc_dataset=[
