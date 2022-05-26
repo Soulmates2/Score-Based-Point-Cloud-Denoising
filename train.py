@@ -13,19 +13,7 @@ from pytorch3d.ops import knn_points
 from dataloader import *
 from models.denoise import *
 from models.util import *
-
-
-class add_random_noise(object):
-        def __init__(self, noise_std_min, noise_std_max):
-            super().__init__()
-            self.noise_std_min = noise_std_min
-            self.noise_std_max = noise_std_max
-
-        def __call__(self, data_dict):
-            std = random.uniform(self.noise_std_min, self.noise_std_max)
-            data_dict['noisy_pc'] = data_dict['clean_pc'] + torch.randn_like(data_dict['clean_pc']) * std
-            data_dict['noise_std'] = std
-            return data_dict
+from noise import *
 
 
 def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, init_step_size=0.2, step_decay=0.95, num_steps=30):
@@ -161,14 +149,14 @@ if __name__ == "__main__":
             PointCloudDataset(
                 split='train',
                 resolution=resol,
-                transform=add_random_noise(noise_std_min=0.005, noise_std_max=0.02)
+                transform=train_transform(noise_std_min=0.005, noise_std_max=0.020, scale_min=0.8, scale_max=1.2, rotate=True)
             ) for resol in ['10000_poisson', '30000_poisson', '50000_poisson']
         ],
     )
     test_data = PointCloudDataset(
         split='test',
         resolution='10000_poisson',
-        transform=add_random_noise(noise_std_min=0.005, noise_std_max=0.02)
+        transform=train_transform(noise_std_min=0.015, noise_std_max=0.015, scale_min=1, scale_max=1, rotate=False)
     )
     train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     train_iter = get_data_iterator(train_loader)
