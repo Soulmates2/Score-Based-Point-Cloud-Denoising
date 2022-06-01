@@ -12,7 +12,7 @@ class DenoiseNet(nn.Module):
         super().__init__()
         
         self.feat_unit = FeatureExtraction()
-        self.score_unit = ScoreNetwork().to('cuda')
+        self.score_unit = ScoreNetwork()
         self.num_train_pts = 128
         self.knn = 32
         self.knn_clean = 4

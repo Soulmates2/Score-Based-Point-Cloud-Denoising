@@ -47,6 +47,38 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
         
     return farthest_point_sampling(iter_patches.reshape(-1, 3), N)
 
+def ablation1_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, num_steps=30):
+    N = noisy_pc.size()[0] #(N,3)
+    
+    num_patches = int(3 * N / patch_size)
+    patch_centers = farthest_point_sampling(noisy_pc, num_patches)
+    noisy_patches = knn_points(patch_centers.unsqueeze(dim=0), noisy_pc.unsqueeze(dim=0), K=patch_size, return_nn=True)[2][0] #(M,P,3)
+    
+    with torch.no_grad():
+        model.eval()
+        model.feat_unit.eval()
+        model.score_unit.eval()
+        
+        feat = model.feat_unit(noisy_patches)
+        iter_patches = noisy_patches.clone()
+        trace = []
+        # trace = [noisy_patches.clone().cpu()]
+        
+        for i in range(num_steps):
+            _, idx, nn = knn_points(noisy_patches, iter_patches, K=denoise_knn, return_nn=True) #idx: (M,P,knn)
+            x = (nn - noisy_patches.unsqueeze(dim=2).repeat(1,1,denoise_knn,1)).reshape(-1,denoise_knn,3)
+            z = feat.reshape(-1,feat.size()[-1])
+            
+            score = model.score_unit(x, z).reshape(noisy_patches.size()[0],-1,3) #(M*P,knn,3) -> (M,P*knn,3)
+            gradients = torch.zeros_like(noisy_patches) #(M,P,3)
+            gradients.scatter_add_(dim=1, index=idx.reshape(idx.size()[0],-1,1).expand_as(score), src=score)
+            
+            iter_patches += gradients
+            trace.append(farthest_point_sampling(iter_patches.reshape(-1, 3), N))
+            # trace.append(iter_patches.clone().cpu())
+        
+    return trace
+
 
 def get_data_iterator(iterable):
     iterator = iterable.__iter__()
@@ -96,7 +128,30 @@ def validation_step(dataset):
 
     cd = compute_chamfer_distance(denoised_pc_list, clean_pc_list)
     return cd
+
+def ablation1_validation_step(dataset, iteration):
+    clean_pc_list = []
+    denoised_pc_list = []
+    for i, test_data in enumerate(tqdm(dataset, desc="val")):
+        noisy_pc = test_data['noisy_pc'].to(device)
+        denoised_pc_trace = ablation1_denoise(noisy_pc, model)
+        if denoised_pc_list == []:
+            denoised_pc_list = [[] for i in range(len(denoised_pc_trace))]
+        for j, denoised_pc in enumerate(denoised_pc_trace):
+            denoised_pc_list[j].append(denoised_pc.unsqueeze(0))
+        clean_pc = test_data['clean_pc'].to(device)
+        clean_pc_list.append(clean_pc.unsqueeze(0))
         
+    clean_pc_list = torch.cat(clean_pc_list, dim=0)
+    cd = float("inf")
+    for j in range(len(denoised_pc_trace)):
+        denoised_pc_list[j] = torch.cat(denoised_pc_list[j], dim=0)
+        curr_cd = compute_chamfer_distance(denoised_pc_list[j], clean_pc_list)
+        if curr_cd < cd:
+            cd = curr_cd
+        if iteration == False:
+            break
+    return cd
 
 def compute_chamfer_distance(denoised_pc, clean_pc):
     # Normalize
@@ -124,10 +179,12 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
     parser.add_argument('--epoch', type=int, default=1000000)
     parser.add_argument('--log', type=eval, default=True, choices=[True, False], help='logging train result')
+    
+    parser.add_argument('--ablation1', type=int, default=0, choices=[0, 1, 2]) # 0: not apply, 1: ablation1, 2: ablation1 with iter
 
     args = parser.parse_args()
     
-    seed = 2022
+    seed = 2020
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -170,7 +227,10 @@ if __name__ == "__main__":
         if args.log is True:
             wandb.log({"Loss/Train": train_loss, "Grad/Train": grad_norm})
         if epoch % 2000 == 0 or epoch == args.epoch:
-            cd = validation_step(test_data)
+            if args.ablation1 == 0:
+                cd = validation_step(test_data)
+            else:
+                cd = ablation1_validation_step(test_data, args.ablation1 == 2)
             print(f'Epoch {epoch}: chamfer distance = {cd}')
             ckpt = {'model':model.state_dict(), 'optimizer':optimizer.state_dict(), 'epoch':epoch}
             torch.save(ckpt, os.path.join(ckpt_root, 'last.pt'))
