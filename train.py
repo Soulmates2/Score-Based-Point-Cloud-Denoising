@@ -135,7 +135,7 @@ if __name__ == "__main__":
     torch.cuda.manual_seed_all(seed) # if use multi-GPU
     
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = 'cuda'
+    device = f'cuda:{args.gpu}'
 
     if args.log is True:
         wandb.init(project='Score Denoising', config=args)
@@ -173,10 +173,10 @@ if __name__ == "__main__":
             cd = validation_step(test_data)
             print(f'Epoch {epoch}: chamfer distance = {cd}')
             ckpt = {'model':model.state_dict(), 'optimizer':optimizer.state_dict(), 'epoch':epoch}
-            torch.save(ckpt, os.path.join(ckpt_root, 'last.pt'))
+            torch.save(ckpt, os.path.join(ckpt_root, 'last_loss.pt'))
             if args.log is True:
                 wandb.log({"CD/Test": cd})
             if cd < best_cd:
                 best_cd = cd
-                torch.save(ckpt, os.path.join(ckpt_root, 'best.pt'))
+                torch.save(ckpt, os.path.join(ckpt_root, 'best_loss.pt'))
                 print(f'Epoch {epoch}: {cd} model is saved')
