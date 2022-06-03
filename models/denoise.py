@@ -9,16 +9,22 @@ from .feature_extraction import FeatureExtraction
 from .score_network import ScoreNetwork
 
 class DenoiseNet(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super().__init__()
         
         self.feat_unit = FeatureExtraction()
         self.score_unit = ScoreNetwork()
         self.num_pts = 128
-        self.knn_for_sample = 32
-        self.knn_for_score = 4
+        if not args.ablation2:
+            self.knn_for_sample = 32
+        else:
+            self.knn_for_sample = 1
+        if not args.ablation2_1:
+            self.knn_for_score = 4
+        else:
+            self.knn_for_score = 1
         self.unsup_knn_for_score = 8
-        self.sigma = 0.01
+        print(self.knn_for_sample, self.knn_for_score)
     
     def sample_idx(self, n, r):
         L = list(range(n))
@@ -48,7 +54,7 @@ class DenoiseNet(nn.Module):
         ground_score -= f.unsqueeze(dim=3)
         ground_score = torch.mean(ground_score, dim=3)
         
-        loss = 0.5 * ((estim_score - ground_score) ** 2.0 * (1.0 / self.sigma)).sum(dim=-1).mean()
+        loss = ((estim_score - ground_score).pow(2) * 50).sum(dim=-1).mean()
         return loss
         
     def get_unsupervised_loss(self, noisy_pc):
@@ -73,7 +79,7 @@ class DenoiseNet(nn.Module):
         ground_score -= f.unsqueeze(dim=3)
         ground_score = torch.mean(ground_score, dim=3)
         
-        loss = 0.5 * ((estim_score - ground_score) ** 2.0 * (1.0 / self.sigma)).sum(dim=-1).mean()
+        loss = ((estim_score - ground_score).pow(2) * 50).sum(dim=-1).mean()
         return loss
         
 

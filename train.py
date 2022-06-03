@@ -80,6 +80,8 @@ if __name__ == "__main__":
     parser.add_argument('--log', type=eval, default=True, choices=[True, False], help='logging train result')
     
     parser.add_argument('--unsup', type=eval, default=False, choices=[True, False], help='unsupervised learning')
+    parser.add_argument('--ablation2', type=eval, default=False, choices=[True, False], help='knn_for_sample=1')
+    parser.add_argument('--ablation2_1', type=eval, default=False, choices=[True, False], help='knn_for_score=1')
 
     args = parser.parse_args()
     
@@ -115,7 +117,7 @@ if __name__ == "__main__":
     )
     train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     train_iter = get_data_iterator(train_loader)
-    model = DenoiseNet().to(device)
+    model = DenoiseNet(args).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0)
 
     best_cd = float("inf")
