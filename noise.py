@@ -6,15 +6,16 @@ import torch
 from torchvision.transforms import Compose
 
 
-def normalize_pc(pcl):
-    p_max = pcl.max(dim=0, keepdim=True)[0]
-    p_min = pcl.min(dim=0, keepdim=True)[0]
-    center = (p_max + p_min) / 2    # (1, 3)
-    pcl = pcl - center
-    
-    scale = (pcl ** 2).sum(dim=1, keepdim=True).sqrt().max(dim=0, keepdim=True)[0]  # (1, 1)
-    pcl = pcl / scale
-    return pcl, center, scale
+def normalize_pc(pc):
+    # Normalize
+    point_max = pc.max(dim=0)[0]
+    point_min = pc.min(dim=0)[0]
+    center = ((point_max + point_min)/2).unsqueeze(0)
+    pc -= center
+    # Scale
+    scale = pc.pow(2).sum(dim=1).sqrt().max()
+    pc /= scale
+    return pc, center, scale
 
 
 class UnitSphereNormalize(object):
@@ -67,7 +68,7 @@ class RandomRotate(object):
 
 
 class AddRandomNoise(object):
-    def __init__(self, noise_std_min, noise_std_max):
+    def __init__(self, noise_std_min=0.005, noise_std_max=0.020):
         super().__init__()
         self.noise_std_min = noise_std_min
         self.noise_std_max = noise_std_max
@@ -86,9 +87,8 @@ def train_transform(noise_std_min=0.005, noise_std_max=0.020, scale_min=0.8, sca
         RandomScale(scale_min, scale_max)
     ]
     if rotate is True:
-        transforms += [
-            RandomRotate(axis=0),
-            RandomRotate(axis=1),
-            RandomRotate(axis=2)
-        ]
+        transforms.append(RandomRotate(axis=0))
+        transforms.append(RandomRotate(axis=1))
+        transforms.append(RandomRotate(axis=2))
+        
     return Compose(transforms)

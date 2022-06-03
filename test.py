@@ -48,6 +48,11 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
+    
+    parser.add_argument('--unsup', type=eval, default=False, choices=[True, False], help='unsupervised learning')
+    parser.add_argument('--ablation2', type=eval, default=False, choices=[True, False], help='knn_for_sample=1')
+    parser.add_argument('--ablation2_1', type=eval, default=False, choices=[True, False], help='knn_for_score=1')
+
     # Denoising
     parser.add_argument('--denoise_iters', type=int, default=1)
     parser.add_argument('--denoise_knn', type=int, default=4, help='ensembled score function')
@@ -109,10 +114,10 @@ if __name__ == "__main__":
             # denormalize point cloud
             denoised_pc = denoised_pc * data_dict['scale'][i] + data_dict['center'][i]
         
-        # save denoised point cloud
-        file_path = os.path.join(save_dir, data_dict['file_name'][i] + '.xyz')
-        np.savetxt(file_path, denoised_pc.numpy(), fmt='%.8f')
-        print(f"Save denoised file {data_dict['file_name'][i]}")
+            # save denoised point cloud
+            file_path = os.path.join(save_dir, data_dict['file_name'][i] + '.xyz')
+            np.savetxt(file_path, denoised_pc.numpy(), fmt='%.8f')
+            print(f"Save denoised file {data_dict['file_name'][i]}")
     
     # evaluate
     denoised_pc_dir = save_dir
