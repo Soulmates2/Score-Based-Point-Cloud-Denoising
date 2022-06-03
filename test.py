@@ -109,10 +109,10 @@ if __name__ == "__main__":
             # denormalize point cloud
             denoised_pc = denoised_pc * data_dict['scale'][i] + data_dict['center'][i]
         
-        # save denoised point cloud
-        file_path = os.path.join(save_dir, data_dict['file_name'][i] + '.xyz')
-        np.savetxt(file_path, denoised_pc.numpy(), fmt='%.8f')
-        print(f"Save denoised file {data_dict['file_name'][i]}")
+            # save denoised point cloud
+            file_path = os.path.join(save_dir, data_dict['file_name'][i] + '.xyz')
+            np.savetxt(file_path, denoised_pc.numpy(), fmt='%.8f')
+            print(f"Save denoised file {data_dict['file_name'][i]}")
     
     # evaluate
     denoised_pc_dir = save_dir
