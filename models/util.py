@@ -1,4 +1,3 @@
-import torch
 from torch_cluster import fps
 
 def farthest_point_sampling(points, n):

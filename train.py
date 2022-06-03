@@ -7,45 +7,12 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
-from pytorch3d.loss import chamfer_distance
-from pytorch3d.ops import knn_points
 
 from dataloader import *
 from models.denoise import *
 from models.util import *
 from noise import *
-
-
-def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, init_step_size=0.2, step_decay=0.95, num_steps=30):
-    N = noisy_pc.size()[0] #(N,3)
-    
-    num_patches = int(3 * N / patch_size)
-    patch_centers = farthest_point_sampling(noisy_pc, num_patches)
-    noisy_patches = knn_points(patch_centers.unsqueeze(dim=0), noisy_pc.unsqueeze(dim=0), K=patch_size, return_nn=True)[2][0] #(M,P,3)
-    
-    with torch.no_grad():
-        model.eval()
-        model.feat_unit.eval()
-        model.score_unit.eval()
-        
-        feat = model.feat_unit(noisy_patches)
-        iter_patches = noisy_patches.clone()
-        # trace = [noisy_patches.clone().cpu()]
-        
-        for i in range(num_steps):
-            _, idx, nn = knn_points(noisy_patches, iter_patches, K=denoise_knn, return_nn=True) #idx: (M,P,knn)
-            x = (nn - noisy_patches.unsqueeze(dim=2).repeat(1,1,denoise_knn,1)).reshape(-1,denoise_knn,3)
-            z = feat.reshape(-1,feat.size()[-1])
-            
-            score = model.score_unit(x, z).reshape(noisy_patches.size()[0],-1,3) #(M*P,knn,3) -> (M,P*knn,3)
-            gradients = torch.zeros_like(noisy_patches) #(M,P,3)
-            gradients.scatter_add_(dim=1, index=idx.reshape(idx.size()[0],-1,1).expand_as(score), src=score)
-            
-            step_size = init_step_size * (step_decay ** i)
-            iter_patches += step_size * gradients
-            # trace.append(iter_patches.clone().cpu())
-        
-    return farthest_point_sampling(iter_patches.reshape(-1, 3), N)
+from eval_metric import *
 
 
 def get_data_iterator(iterable):
@@ -101,28 +68,12 @@ def validation_step(dataset):
     return cd
         
 
-def compute_chamfer_distance(denoised_pc, clean_pc):
-    # Normalize
-    p_max = clean_pc.max(dim=-2, keepdim=True)[0]
-    p_min = clean_pc.min(dim=-2, keepdim=True)[0]
-    center = (p_max + p_min) / 2
-    clean_pc = clean_pc - center
-    # Scale
-    scale = (clean_pc ** 2).sum(dim=-1, keepdim=True).sqrt().max(dim=-2, keepdim=True)[0] / 1.0  # (B, N, 1)
-    gt = clean_pc / scale
-    pred = (denoised_pc - center) / scale
-    return chamfer_distance(pred, gt, batch_reduction='mean', point_reduction='mean')[0].item()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=str, default='./data', help='dataset path')
     parser.add_argument('--dataset', type=str, default='PUNet', help='name of dataset')
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_workers', type=int, default=4)
-
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--weight_decay', type=float, default=0)
     
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
     parser.add_argument('--epoch', type=int, default=1000000)
@@ -140,7 +91,7 @@ if __name__ == "__main__":
     torch.cuda.manual_seed_all(seed) # if use multi-GPU
     
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    device = 'cuda'
+    device = f'cuda:{args.gpu}'
 
     if args.log is True:
         wandb.init(project='Score Denoising', config=args)
@@ -165,7 +116,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     train_iter = get_data_iterator(train_loader)
     model = DenoiseNet().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0)
 
     best_cd = float("inf")
 
@@ -177,7 +128,10 @@ if __name__ == "__main__":
         if epoch % 2000 == 0 or epoch == args.epoch:
             cd = validation_step(test_data)
             print(f'Epoch {epoch}: chamfer distance = {cd}')
-            ckpt = {'model':model.state_dict(), 'optimizer':optimizer.state_dict(), 'epoch':epoch}
+            ckpt = {'model':model.state_dict(), 
+                    'optimizer':optimizer.state_dict(), 
+                    'epoch':epoch,
+                    'cd':cd}
             torch.save(ckpt, os.path.join(ckpt_root, 'last.pt'))
             if args.log is True:
                 wandb.log({"CD/Test": cd})

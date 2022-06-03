@@ -1,8 +1,9 @@
+import random
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch3d.ops import knn_points
-import random
 
 from .feature_extraction import FeatureExtraction
 from .score_network import ScoreNetwork

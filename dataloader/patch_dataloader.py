@@ -1,5 +1,4 @@
 import random
-import importlib
 
 import torch
 from torch.utils.data import Dataset
@@ -17,11 +16,10 @@ class PatchDataset(Dataset):
     def make_patch_pointcloud(self, noisy, clean_gt):
         seed_idx = torch.randperm(noisy.shape[0])[:1]
         seed_points = noisy[seed_idx].unsqueeze(0)
-        _, _, patch_noisy = knn_points(seed_points, noisy.unsqueeze(0), K=self.patch_size, return_nn=True)
-        _, _, patch_clean = knn_points(seed_points, clean_gt.unsqueeze(0), K=int(self.patch_ratio*self.patch_size), return_nn=True)
+        patch_noisy = knn_points(seed_points, noisy.unsqueeze(0), K=self.patch_size, return_nn=True)[2]
+        patch_clean = knn_points(seed_points, clean_gt.unsqueeze(0), K=int(self.patch_ratio*self.patch_size), return_nn=True)[2]
         return patch_noisy[0], patch_clean[0]
     
-
     def __len__(self):
         return sum([len(dataset) for dataset in self.pc_dataset])*self.num_patches
     
@@ -37,25 +35,4 @@ class PatchDataset(Dataset):
 
 if __name__ == "__main__":
     print("============ Patch Dataloader ============")
-    pc_dataloader = importlib.import_module("pointcloud_dataloader")
-    class add_random_noise(object):
-        def __init__(self, noise_std_min, noise_std_max):
-            super().__init__()
-            self.noise_std_min = noise_std_min
-            self.noise_std_max = noise_std_max
-
-        def __call__(self, data_dict):
-            std = random.uniform(self.noise_std_min, self.noise_std_max)
-            data_dict['noisy_pc'] = data_dict['clean_pc'] + torch.randn_like(data_dict['clean_pc']) * std
-            data_dict['noise_std'] = std
-            return data_dict
     
-    patch_dataset = PatchDataset(
-        pc_dataset=[
-            pc_dataloader.PointCloudDataset(
-                resolution=resol,
-                transform=add_random_noise(noise_std_min=0.005, noise_std_max=0.02)
-            ) for resol in ['10000_poisson', '30000_poisson', '50000_poisson']
-        ],
-    )
-    print(patch_dataset[0]['noisy_pc'].shape, patch_dataset[0]['clean_pc'].shape)

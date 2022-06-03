@@ -1,9 +1,16 @@
-import importlib
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pytorch3d.ops import knn_points
+
+
+class MaxAggregator(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x, dim):
+        out = x.max(dim=dim)[0]
+        return out
 
 
 class DenseEdgeConv(nn.Module):
@@ -30,7 +37,12 @@ class DenseEdgeConv(nn.Module):
             nn.ReLU()
         )
         
-        self.layer3 = nn.Linear(n_input + 2 * n_output, n_output, bias=True)
+        self.layer3 = nn.Sequential(
+            nn.Linear(n_input + 2 * n_output, n_output, bias=True),
+            nn.Identity()
+        )
+
+        self.aggregator = MaxAggregator()
         
     def feature_knn(self, x):
         N, F = x.size()[1], x.size()[2]
@@ -46,9 +58,6 @@ class DenseEdgeConv(nn.Module):
         else:
             return torch.cat([prev, feat, feat - prev], dim=-1)
     
-    @property
-    def out_channels(self):
-        return self.n_input + self.n_output * 3
 
     def forward(self, x):
         x1 = self.layer1(self.feature_knn(x))
@@ -62,8 +71,10 @@ class DenseEdgeConv(nn.Module):
         x1 = self.layer3(x)
         x2 = x
         x = torch.cat([x1, x2], dim=-1)
+
+        out = self.aggregator(x, dim=-2)
         
-        return torch.max(x, dim=-2)[0]
+        return out
 
 
 class FeatureExtraction(nn.Module):
@@ -85,9 +96,6 @@ class FeatureExtraction(nn.Module):
                 self.layer_list.append(DenseEdgeConv(feature_size, conv_output_size, knn, is_first_layer=False))
         self.layers = nn.Sequential(*self.layer_list)
     
-    @property
-    def out_channels(self):
-        return self.layers[-1].out_channels
 
     def forward(self, x):
         return self.layers(x)
