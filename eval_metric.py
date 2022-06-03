@@ -39,12 +39,12 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
 
 def compute_chamfer_distance(denoised_pc, clean_pc):
     # Normalize
-    p_max = clean_pc.max(dim=-2, keepdim=True)[0]
-    p_min = clean_pc.min(dim=-2, keepdim=True)[0]
-    center = (p_max + p_min) / 2
-    clean_pc = clean_pc - center
+    point_max = clean_pc.max(dim=-2, keepdim=True)[0]
+    point_min = clean_pc.min(dim=-2, keepdim=True)[0]
+    center = (point_max + point_min) / 2
+    clean_pc -= center
     # Scale
-    scale = (clean_pc ** 2).sum(dim=-1, keepdim=True).sqrt().max(dim=-2, keepdim=True)[0] / 1.0  # (B, N, 1)
+    scale = clean_pc.pow(2).sum(dim=-1, keepdim=True).sqrt().max(dim=-2, keepdim=True)[0] / 1.0
     gt = clean_pc / scale
     pred = (denoised_pc - center) / scale
     return chamfer_distance(pred, gt, batch_reduction='mean', point_reduction='mean')[0].item()
@@ -53,13 +53,13 @@ def compute_chamfer_distance(denoised_pc, clean_pc):
 def compute_point_to_mesh(denoised_pc, verts, faces):
     # Normalize mesh
     verts = verts.unsqueeze(0)
-    v_max = verts.max(dim=-2, keepdim=True)[0]
-    v_min = verts.min(dim=-2, keepdim=True)[0]
-    center = (v_max + v_min) / 2
-    verts = verts - center
+    vertex_max = verts.max(dim=-2, keepdim=True)[0]
+    vertex_min = verts.min(dim=-2, keepdim=True)[0]
+    center = (vertex_max + vertex_min) / 2
+    verts -= center
     # Scale
-    scale = (verts ** 2).sum(dim=-1, keepdim=True).sqrt().max(dim=-2, keepdim=True)[0] / 1.0  # (B, N, 1)
-    verts = verts / scale
+    scale = verts.pow(2).sum(dim=-1, keepdim=True).sqrt().max(dim=-2, keepdim=True)[0] / 1.0 
+    verts /= scale
     verts = torch.squeeze(verts, dim=0)
     # Normalize pc
     denoised_pc.unsqueeze(0)
