@@ -57,13 +57,16 @@ def get_data_iterator(iterable):
             iterator = iterable.__iter__()
 
 
-def train_step(iter, model):
+def train_step(iter, model, unsup=False):
     batch = next(train_iter)
     noisy_pc = batch['noisy_pc'].to(device)
     clean_pc = batch['clean_pc'].to(device)
     
     model.train()
-    loss = model.get_loss(noisy_pc, clean_pc)
+    if not unsup:
+        loss = model.get_loss(noisy_pc, clean_pc)
+    else:
+        loss = model.get_unsupervised_loss(noisy_pc)
 
     optimizer.zero_grad()
     loss.backward()
@@ -124,6 +127,8 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', type=str, default='0', help='specify GPU devices')
     parser.add_argument('--epoch', type=int, default=1000000)
     parser.add_argument('--log', type=eval, default=True, choices=[True, False], help='logging train result')
+    
+    parser.add_argument('--unsup', type=eval, default=False, choices=[True, False], help='unsupervised learning')
 
     args = parser.parse_args()
     
@@ -165,7 +170,7 @@ if __name__ == "__main__":
     best_cd = float("inf")
 
     for epoch in range(1, args.epoch+1):
-        train_loss, grad_norm = train_step(epoch, model)
+        train_loss, grad_norm = train_step(epoch, model, args.unsup)
         print(f'Epoch {epoch}/{args.epoch}: train loss = {train_loss}')
         if args.log is True:
             wandb.log({"Loss/Train": train_loss, "Grad/Train": grad_norm})
