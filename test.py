@@ -52,6 +52,11 @@ if __name__ == "__main__":
     parser.add_argument('--denoise_iters', type=int, default=1)
     parser.add_argument('--denoise_knn', type=int, default=4, help='ensembled score function')
     
+    parser.add_argument('--ablation1', type=eval, default=False, choices=[True, False], help='displacement-based denoise')
+    parser.add_argument('--ablation2', type=eval, default=False, choices=[True, False], help='knn_for_sample=1')
+    parser.add_argument('--ablation2_1', type=eval, default=False, choices=[True, False], help='knn_for_score=1')
+    parser.add_argument('--ablation3', type=eval, default=False, choices=[True, False], help='single score function')
+    
     args = parser.parse_args()
     
     seed = 2022
@@ -88,7 +93,7 @@ if __name__ == "__main__":
 
     # load model
     checkpoint = torch.load(args.checkpoint, map_location=device)
-    model = DenoiseNet().to(device)
+    model = DenoiseNet(args).to(device)
     model.load_state_dict(checkpoint['model'])
 
     # test
@@ -98,7 +103,7 @@ if __name__ == "__main__":
             iter_pc = noisy_pc.clone()
             for _ in range(args.denoise_iters):
                 # denoising
-                iter_pc = gradient_ascent_denoise(iter_pc, model, denoise_knn=args.denoise_knn)
+                iter_pc = gradient_ascent_denoise(iter_pc, model, denoise_knn=args.denoise_knn, ablation1=args.ablation1, ablation3=args.ablation3)
             denoised_pc = iter_pc.cpu()
 
             # denormalize point cloud

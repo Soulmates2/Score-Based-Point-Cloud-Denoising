@@ -5,7 +5,7 @@ from pytorch3d.ops import knn_points
 
 from models.util import *
 
-def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, init_step_size=0.2, step_decay=0.95, num_steps=30):
+def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, num_steps=30, ablation1=False, ablation3=False):
     N = noisy_pc.size()[0] #(N,3)
     
     num_patches = int(3 * N / patch_size)
@@ -21,17 +21,25 @@ def gradient_ascent_denoise(noisy_pc, model, patch_size=1000, denoise_knn=4, ini
         iter_patches = noisy_patches.clone()
         # trace = [noisy_patches.clone().cpu()]
         
+        if ablation3:
+            denoise_knn = 1
+        
         for i in range(num_steps):
-            _, idx, nn = knn_points(noisy_patches, iter_patches, K=denoise_knn, return_nn=True) #idx: (M,P,knn)
+            r = knn_points(noisy_patches, iter_patches, K=denoise_knn, return_nn=True) #idx: (M,P,knn)
+            idx, nn = r[1], r[2]
             x = (nn - noisy_patches.unsqueeze(dim=2).repeat(1,1,denoise_knn,1)).reshape(-1,denoise_knn,3)
             z = feat.reshape(-1,feat.size()[-1])
             
             score = model.score_unit(x, z).reshape(noisy_patches.size()[0],-1,3) #(M*P,knn,3) -> (M,P*knn,3)
             gradients = torch.zeros_like(noisy_patches) #(M,P,3)
-            gradients.scatter_add_(dim=1, index=idx.reshape(idx.size()[0],-1,1).expand_as(score), src=score)
+            idx = idx.reshape(idx.size()[0],-1,1).expand_as(score)
+            gradients.scatter_add_(dim=1, index=idx, src=score)
             
-            step_size = init_step_size * (step_decay ** i)
-            iter_patches += step_size * gradients
+            if not ablation1:
+                iter_patches += 0.2 * (0.95 ** i) * gradients
+            else:
+                iter_patches += gradients
+                break
             # trace.append(iter_patches.clone().cpu())
         
     return farthest_point_sampling(iter_patches.reshape(-1, 3), N)

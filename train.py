@@ -80,8 +80,10 @@ if __name__ == "__main__":
     parser.add_argument('--log', type=eval, default=True, choices=[True, False], help='logging train result')
     
     parser.add_argument('--unsup', type=eval, default=False, choices=[True, False], help='unsupervised learning')
+    parser.add_argument('--ablation1', type=eval, default=False, choices=[True, False], help='displacement-based denoise')
     parser.add_argument('--ablation2', type=eval, default=False, choices=[True, False], help='knn_for_sample=1')
     parser.add_argument('--ablation2_1', type=eval, default=False, choices=[True, False], help='knn_for_score=1')
+    parser.add_argument('--ablation3', type=eval, default=False, choices=[True, False], help='single score function')
 
     args = parser.parse_args()
     

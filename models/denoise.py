@@ -24,7 +24,6 @@ class DenoiseNet(nn.Module):
         else:
             self.knn_for_score = 1
         self.unsup_knn_for_score = 8
-        print(self.knn_for_sample, self.knn_for_score)
     
     def sample_idx(self, n, r):
         L = list(range(n))
