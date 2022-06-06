@@ -33,7 +33,7 @@ Please extract `score_dataset.zip` to `data` folder. It concludes PU-Net, PCNet,
 
 
 ## Pretrained checkpoints
-Download link: https://drive.google.com/file/d/1ZZ3EON8TTtwoRciT5ThcYU3sTtj9Kj7Z/view?usp=sharing
+Download link: https://drive.google.com/file/d/1NsNtRR9qhZRsc4GkUGIpU6FXMZpL5UFB/view?usp=sharing
 
 Please extract `checkpoints.zip` to `checkpoints` folder. It concludes basic model(`best.pt`), ablation study model (`ablation2_best.pt`), and unsupervised model (`unsup_best.pt`).
 
