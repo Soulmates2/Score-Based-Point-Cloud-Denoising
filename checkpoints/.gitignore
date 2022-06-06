@@ -1,0 +1,14 @@
+# File extension for dataset
+*.zip
+*.xyz
+*.off
+
+/*.xyz
+/*.off
+
+# File extension for checkpoint
+*.pt
+*.pth
+
+*
+!.gitignore

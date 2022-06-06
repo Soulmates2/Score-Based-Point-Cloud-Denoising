@@ -32,6 +32,11 @@ Download link: https://drive.google.com/file/d/1ZZ3EON8TTtwoRciT5ThcYU3sTtj9Kj7Z
 Please extract `score_dataset.zip` to `data` folder. It concludes PU-Net, PCNet, and noisy LiDAR dataset.
 
 
+## Pretrained checkpoints
+Download link: https://drive.google.com/file/d/1ZZ3EON8TTtwoRciT5ThcYU3sTtj9Kj7Z/view?usp=sharing
+
+Please extract `checkpoints.zip` to `checkpoints` folder. It concludes basic model(`best.pt`), ablation study model (`ablation2_best.pt`), and unsupervised model (`unsup_best.pt`).
+
 ## Train
 
 ```bash
@@ -94,10 +99,9 @@ python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 2 --noise 0
 ```
 
 ## Acknowledgement
-We borrowed dataset, hyper-parameter setting and rendering code from author.
+We implemented the whole pipeline of denoising network with libraries `pytorch`, `pytorch3d`, `pytorch-cluster` and `point_cloud_utils`. We borrowed datasets, hyper-parameter setting and basic skeleton code of denoising model from authors.
 
 ## Citation
-
 ```
 @InProceedings{Luo_2021_ICCV,
     author    = {Luo, Shitong and Hu, Wei},
