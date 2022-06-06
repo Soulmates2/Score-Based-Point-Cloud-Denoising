@@ -25,18 +25,76 @@ conda env create -f env.yml
 conda activate score-denoise
 ```
 
-## PU-Net Datasets
+## Datasets
 
-Download link: https://drive.google.com/drive/folders/1--MvLnP7dsBgBZiu46H0S32Y1eBa_j6P?usp=sharing
+Download link: https://drive.google.com/file/d/1ZZ3EON8TTtwoRciT5ThcYU3sTtj9Kj7Z/view?usp=sharing
 
-Please extract `data.zip` to `data` folder.
-
-
-## PC-Net Datasets
-
-Download link: https://nuage.lix.polytechnique.fr/index.php/s/9CrHe259zaJEMb8/download
+Please extract `score_dataset.zip` to `data` folder. It concludes PU-Net, PCNet, and noisy LiDAR dataset.
 
 
+## Train
+
+```bash
+# basic training (supervised)
+python train.py
+
+# unsupervised training
+python train.py --unsup True
+
+# ablation study 2
+python train.py --ablation2 True
+
+```
+Training time takes about 39~40 hours.
+
+## Test
+
+```bash
+# PUNet 10K
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.01
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.02
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 2 --noise 0.03
+
+# PUNet 50K
+python test.py --dataset PUNet --resol 50000_poisson --denoise_iters 1 --noise 0.01
+python test.py --dataset PUNet --resol 50000_poisson --denoise_iters 1 --noise 0.02
+python test.py --dataset PUNet --resol 50000_poisson --denoise_iters 2 --noise 0.03
+
+# PCNet 10K
+python test.py --dataset PCNet --resol 10000_poisson --denoise_iters 1 --noise 0.01
+python test.py --dataset PCNet --resol 10000_poisson --denoise_iters 1 --noise 0.02
+python test.py --dataset PCNet --resol 10000_poisson --denoise_iters 2 --noise 0.03
+
+# PCNet 50K
+python test.py --dataset PUNet --resol 50000_poisson --denoise_iters 1 --noise 0.01
+python test.py --dataset PUNet --resol 50000_poisson --denoise_iters 1 --noise 0.02
+python test.py --dataset PUNet --resol 50000_poisson --denoise_iters 2 --noise 0.03
+```
+
+```bash
+# Ablation study (1)
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.01 --ablation1 True
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.02 --ablation1 True
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.03 --ablation1 True
+
+# Ablation study (1)+iters.
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.01 --ablation1 True
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.02 --ablation1 True
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 2 --noise 0.03 --ablation1 True
+
+# Ablation study (2): use checkpoint trained by ablation2
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.01 --checkpoint ./checkpoints/ablation2_best.pt
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.02 --checkpoint ./checkpoints/ablation2_best.pt 
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 2 --noise 0.03 --checkpoint ./checkpoints/ablation2_best.pt
+
+# Ablation study (3)
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.01 --ablation3 True
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 1 --noise 0.02 --ablation3 True
+python test.py --dataset PUNet --resol 10000_poisson --denoise_iters 2 --noise 0.03 --ablation3 True
+```
+
+## Acknowledgement
+We borrowed dataset, hyper-parameter setting and rendering code from author.
 
 ## Citation
 
